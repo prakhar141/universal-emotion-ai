@@ -133,8 +133,10 @@
         // Initialize and download WASM model
         async function init() {
             try {
-                // FIXED: Loading standard, open, ungated, public Xenova DeBERTa tokenizer
-                tokenizer = await AutoTokenizer.from_pretrained('Xenova/deberta-v3-base');
+                // FIXED: Loading Xenova/deberta-v3-small tokenizer.
+                // This repo is public, completely ungated, and shares the exact same 
+                // 128k SentencePiece vocabulary files as deberta-v3-base!
+                tokenizer = await AutoTokenizer.from_pretrained('Xenova/deberta-v3-small');
                 
                 // Initialize ONNX runtime execution session
                 session = await ort.InferenceSession.create(MODEL_URL);
