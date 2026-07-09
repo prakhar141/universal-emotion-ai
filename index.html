@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Affective AI Engine</title>
+    <!-- Tailwind CSS for modern, high-fidelity responsive UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ONNX Runtime Web CDN to run model weights on CPU/GPU in-browser -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+</head>
+<body class="bg-gray-950 text-white min-h-screen flex flex-col font-sans">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="h-4 w-4 rounded-full bg-emerald-500 animate-pulse"></div>
+            <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">Universal Affective AI</h1>
+        </div>
+        <div class="text-xs text-gray-400 font-mono bg-gray-800/80 px-3 py-1.5 rounded-full border border-gray-700/50">
+            Engine: ONNX Webassembly [Local GPU/CPU]
+        </div>
+    </header>
+
+    <!-- Main Chat Container -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
+        <!-- Initial Loader State (Shows while model is downloading) -->
+        <div id="model-loader" class="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+            <div class="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-400 rounded-full animate-spin"></div>
+            <div>
+                <h3 class="text-lg font-semibold">Downloading AI Brain...</h3>
+                <p class="text-sm text-gray-500 max-w-xs mt-1">Downloading compiled DeBERTa+GCN model (~90MB) from Hugging Face directly to your browser memory. This happens only once.</p>
+                <div class="w-48 bg-gray-800 h-1.5 rounded-full overflow-hidden mx-auto mt-4">
+                    <div class="bg-emerald-400 h-full w-full animate-shimmer" style="background-image: linear-gradient(90deg, #10b981 0%, #059669 50%, #10b981 100%); background-size: 200% 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conversational Interface (Hidden until model load succeeds) -->
+        <div id="chat-interface" class="hidden flex-1 flex flex-col md:flex-row gap-6 overflow-hidden min-h-[400px]">
+            <!-- Chat Feed Panel -->
+            <div class="flex-1 flex flex-col bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
+                <!-- Messages Box -->
+                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4 font-normal text-sm scroll-smooth">
+                    <div class="flex gap-3 max-w-[85%]">
+                        <div class="h-8 w-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xs font-bold">AI</div>
+                        <div class="bg-gray-800/80 px-4 py-3 rounded-2xl rounded-tl-none border border-gray-700/40 text-gray-200">
+                            Hello. I am your local, superhuman emotional companion. Write anything you want—I can understand your unmasked feelings, personal baselines, and cognitive thought patterns locally.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Action Form -->
+                <div class="p-4 border-t border-gray-800/80 bg-gray-900/80">
+                    <form id="chat-form" class="flex gap-2">
+                        <input type="text" id="user-input" required class="flex-1 bg-gray-950 border border-gray-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none rounded-xl px-4 py-3 text-sm transition-all text-gray-100 placeholder-gray-600" placeholder="Type an emotionally complex sentence or use emojis...">
+                        <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-gray-950 font-semibold px-6 py-3 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/10">Analyze</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Real-Time Metrics & Cognitive Appraisal Dashboard Panel -->
+            <div class="w-full md:w-80 flex flex-col gap-4">
+                <div class="bg-gray-900/30 border border-gray-800/80 p-5 rounded-2xl flex flex-col gap-4">
+                    <h2 class="text-sm font-semibold text-gray-400 tracking-wider uppercase">Cognitive Dashboard</h2>
+                    <hr class="border-gray-800">
+                    
+                    <!-- Predicted Emotion -->
+                    <div>
+                        <span class="text-xs text-gray-500 block mb-1">Dominant Emotion State</span>
+                        <div id="meta-emotion" class="text-md font-bold text-emerald-400">Neutral (100%)</div>
+                    </div>
+
+                    <!-- VAD Slider indicators -->
+                    <div class="space-y-3">
+                        <span class="text-xs text-gray-500 block">Empirical VAD Trajectory Coordinates</span>
+                        <div>
+                            <div class="flex justify-between text-[11px] mb-1"><span class="text-rose-400 font-semibold">Valence (Pleasure)</span><span id="val-num" class="font-mono">0.50</span></div>
+                            <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden border border-gray-800/50"><div id="val-bar" class="bg-rose-400 h-full transition-all duration-300" style="width: 50%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] mb-1"><span class="text-amber-400 font-semibold">Arousal (Tension)</span><span id="aro-num" class="font-mono">0.20</span></div>
+                            <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden border border-gray-800/50"><div id="aro-bar" class="bg-amber-400 h-full transition-all duration-300" style="width: 20%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] mb-1"><span class="text-sky-400 font-semibold">Dominance (Control)</span><span id="dom-num" class="font-mono">0.50</span></div>
+                            <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden border border-gray-800/50"><div id="dom-bar" class="bg-sky-400 h-full transition-all duration-300" style="width: 50%"></div></div>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-800">
+
+                    <!-- CBT Cognitive distortion diagnosis -->
+                    <div>
+                        <span class="text-xs text-gray-500 block mb-1">CBT Cognitive Distortion</span>
+                        <div id="meta-cbt" class="inline-block bg-gray-950 border border-gray-800 text-[11px] font-bold px-3 py-1.5 rounded-lg text-gray-400">NONE</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Import DeBERTa tokenizer using HF official Xenova/Transformers ES-Module -->
+    <script type="module">
+        import { AutoTokenizer } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.15.1';
+
+        // Your public Hugging Face ONNX path
+        const MODEL_URL = "https://huggingface.co/prakhar146/universal-emotion-model/resolve/main/superhuman_emotion_model.onnx";
+        
+        let session = null;
+        let tokenizer = null;
+        const labelsList = ["admiration", "amusement", "anger", "annoyance", "approval", "caring", "confusion", "curiosity", "desire", "disappointment", "disapproval", "disgust", "embarrassment", "excitement", "fear", "gratitude", "grief", "joy", "love", "nervousness", "optimism", "pride", "realization", "relief", "remorse", "sadness", "surprise", "neutral"];
+
+        // Static Lexicon vectors for client-side fallback
+        const localLexicon = {
+            "love": [0.95, 0.65, 0.75], "happy": [0.90, 0.75, 0.75], "sad": [0.15, 0.35, 0.25], 
+            "flunked": [0.20, 0.60, 0.30], "homeless": [0.10, 0.50, 0.20], "suicide": [0.05, 0.95, 0.10],
+            "fine": [0.60, 0.30, 0.50], "cry": [0.15, 0.65, 0.20]
+        };
+
+        // Static CBT response templates
+        const cbtReframes = {
+            "NONE": "I hear you completely. Tell me more about what is going on.",
+            "CATASTROPHIZING": "It sounds like you are experiencing Catastrophizing. Let's look at the actual facts together. What is the realistic probability of this happening, and how can we handle it step-by-step?",
+            "PERSONALIZATION": "I see you blaming yourself for this. Remember to consider outside factors; you are carrying responsibility for variables completely outside of your control. Be gentle with yourself.",
+            "HELPLESSNESS": "It feels like there's no way out right now. Let's break this down into one single, micro-step. What is one small option that remains completely within your control today?"
+        };
+
+        // Initialize and download WASM model
+        async function init() {
+            try {
+                // Initialize the DeBERTa tokenizer locally
+                tokenizer = await AutoTokenizer.from_pretrained('microsoft/deberta-v3-base');
+                
+                // Initialize ONNX runtime execution session
+                session = await ort.InferenceSession.create(MODEL_URL);
+                
+                // Transition interface state
+                document.getElementById('model-loader').classList.add('hidden');
+                document.getElementById('chat-interface').classList.remove('hidden');
+                console.log("Affective AI Brain fully loaded and compiled locally.");
+            } catch (err) {
+                console.error("Initialization failed:", err);
+                alert("Failed to compile local WASM brain. Check internet access and console logs.");
+            }
+        }
+
+        // Feature Vector Extraction in Javascript
+        function getStructuralFeatures(text) {
+            const rawLen = Math.max(text.length, 1);
+            const letters = text.replace(/[^A-Za-z]/g, "");
+            const upper = text.replace(/[^A-Z]/g, "");
+            const capsRatio = letters.length > 0 ? upper.length / letters.length : 0.0;
+            
+            const excl = Math.min((text.split("!").length - 1) / rawLen * 10, 1.0);
+            const quest = Math.min((text.split("?").length - 1) / rawLen * 10, 1.0);
+            const ellip = Math.min((text.split("...").length - 1) / rawLen * 10, 1.0);
+            
+            // Emoji count
+            const emojiRe = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
+            const emojiCount = (text.match(emojiRe) || []).length;
+            const emojiDensity = Math.min(emojiCount / rawLen * 5, 1.0);
+
+            return Float32Array.from([capsRatio, excl, quest, ellip, emojiDensity]);
+        }
+
+        function getLexiconFeatures(text) {
+            const words = text.toLowerCase().split(/\s+/);
+            let accum = [0, 0, 0];
+            let hits = 0;
+            words.forEach(w => {
+                if (localLexicon[w]) {
+                    accum[0] += localLexicon[w][0];
+                    accum[1] += localLexicon[w][1];
+                    accum[2] += localLexicon[w][2];
+                    hits++;
+                }
+            });
+            // We expand 3D VAD into our model's 10D expected input scale
+            let outVec = new Float32Array(10);
+            if (hits > 0) {
+                outVec[4] = accum[0] / hits; // Map to Joy position
+                outVec[5] = accum[1] / hits; // Map to Sadness position
+                outVec[8] = accum[2] / hits; // Map to Negative position
+            }
+            return outVec;
+        }
+
+        // Main inference logic
+        async function runAffectiveInference(text) {
+            if (!session || !tokenizer) return;
+
+            // 1. Tokenize using Hugging Face browser tokenizer
+            const encoded = await tokenizer(text, { maxLength: 64, padding: true, truncation: true });
+            const inputIds = Int32Array.from(encoded.input_ids);
+            const attentionMask = Int32Array.from(encoded.attention_mask);
+            
+            // 2. Generate local structural and lexicon vectors
+            const structFeats = getStructuralFeatures(text);
+            const lexFeats = getLexiconFeatures(text);
+
+            // 3. Create static GCN token-adjacency matrix [1, 64, 64]
+            const adjMatrix = new Float32Array(64 * 64);
+            for (let i = 0; i < 64; i++) {
+                adjMatrix[i * 64 + i] = 1.0; // Self loops
+                if (i < 63) {
+                    adjMatrix[i * 64 + (i + 1)] = 1.0; // Pacing sequence connections
+                    adjMatrix[(i + 1) * 64 + i] = 1.0;
+                }
+            }
+
+            // 4. Pack inputs into strict ONNX tensors
+            const inputs = {
+                input_ids: new ort.Tensor('int32', inputIds, [1, 64]),
+                attention_mask: new ort.Tensor('int32', attentionMask, [1, 64]),
+                adj_matrix: new ort.Tensor('float32', adjMatrix, [1, 64, 64]),
+                lex_features: new ort.Tensor('float32', lexFeats, [1, 10]),
+                struct_features: new ort.Tensor('float32', structFeats, [1, 5])
+            };
+
+            // 5. Execute model math in-browser
+            const results = await session.run(inputs);
+            
+            // 6. Decode outputs
+            const rawLogits = results.logits.data;
+            const rawVad = results.vad_coordinates.data;
+
+            // Apply Sigmoid manually to logits -> probabilities
+            const probs = Array.from(rawLogits).map(x => 1 / (1 + Math.exp(-x)));
+            let meanVad = [rawVad[0], rawVad[1], rawVad[2]];
+
+            // Post-processing Calibrations
+            const textLower = text.toLowerCase();
+            let isCrisis = false;
+            let activeEmotion = "Neutral";
+            let maxProb = 0.50;
+
+            // Locate peak emotion
+            for(let i=0; i<probs.length; i++) {
+                if(probs[i] > maxProb) {
+                    maxProb = probs[i];
+                    activeEmotion = labelsList[i];
+                }
+            }
+
+            // Heuristic Safety Router overrides
+            if (/\b(suicide|kill myself|self-harm|end my life)\b/i.test(textLower)) {
+                meanVad = [0.10, 0.95, 0.15];
+                activeEmotion = "grief";
+                isCrisis = true;
+            } else if (/\b(flunked|homeless|kicked out|fail)\b/i.test(textLower)) {
+                meanVad = [0.15, 0.85, 0.25];
+                activeEmotion = "fear";
+            } else if (text.includes("💔") || text.includes("😭")) {
+                if (/\b(fine|happy|okay|cool)\b/i.test(textLower)) {
+                    meanVad = [0.15, 0.75, 0.30];
+                    activeEmotion = "grief";
+                }
+            }
+
+            // Map Cognitive Distortion
+            let distortion = "NONE";
+            const coping = meanVad[2]; // Dominance is a proxy for coping potential
+            const certainty = meanVad[0];
+            const arousal = meanVad[1];
+
+            if (coping < 0.40 && certainty < 0.45 && arousal > 0.45) {
+                distortion = "CATASTROPHIZING";
+            } else if (coping < 0.35 && meanVad[0] < 0.35 && arousal <= 0.60) {
+                distortion = "HELPLESSNESS";
+            }
+
+            // 7. Update UI Panels
+            updateDashboard(activeEmotion, maxProb, meanVad, distortion);
+            
+            // 8. Generate conversational response
+            let response = isCrisis ? 
+                "🚨 CLINICAL CRISIS DETECTED: Please reach out immediately to the National Suicide Prevention Lifeline by calling or texting 988. You do not have to face this dark moment alone." : 
+                cbtReframes[distortion];
+            
+            appendMessage(text, response);
+        }
+
+        function updateDashboard(emotion, prob, vad, distortion) {
+            document.getElementById('meta-emotion').innerText = `${emotion.toUpperCase()} (${(prob*100).toFixed(1)}%)`;
+            
+            document.getElementById('val-num').innerText = vad[0].toFixed(2);
+            document.getElementById('val-bar').style.width = `${vad[0]*100}%`;
+            
+            document.getElementById('aro-num').innerText = vad[1].toFixed(2);
+            document.getElementById('aro-bar').style.width = `${vad[1]*100}%`;
+            
+            document.getElementById('dom-num').innerText = vad[2].toFixed(2);
+            document.getElementById('dom-bar').style.width = `${vad[2]*100}%`;
+            
+            document.getElementById('meta-cbt').innerText = distortion;
+            if (distortion !== "NONE") {
+                document.getElementById('meta-cbt').className = "inline-block bg-red-950 border border-red-800 text-[11px] font-bold px-3 py-1.5 rounded-lg text-red-400";
+            } else {
+                document.getElementById('meta-cbt').className = "inline-block bg-gray-950 border border-gray-800 text-[11px] font-bold px-3 py-1.5 rounded-lg text-gray-400";
+            }
+        }
+
+        function appendMessage(userText, aiResponse) {
+            const chatBox = document.getElementById('chat-messages');
+            
+            // Append User message
+            const userHtml = `
+                <div class="flex gap-3 justify-end max-w-[85%] ml-auto">
+                    <div class="bg-emerald-500 text-gray-950 px-4 py-3 rounded-2xl rounded-tr-none font-semibold">
+                        ${userText}
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', userHtml);
+            
+            // Append AI response
+            setTimeout(() => {
+                const aiHtml = `
+                    <div class="flex gap-3 max-w-[85%]">
+                        <div class="h-8 w-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xs font-bold">AI</div>
+                        <div class="bg-gray-800/80 px-4 py-3 rounded-2xl rounded-tl-none border border-gray-700/40 text-gray-200">
+                            ${aiResponse}
+                        </div>
+                    </div>
+                `;
+                chatBox.insertAdjacentHTML('beforeend', aiHtml);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 300);
+        }
+
+        // Form Submission handler
+        document.getElementById('chat-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inputField = document.getElementById('user-input');
+            const text = inputField.value.trim();
+            if (!text) return;
+            
+            inputField.value = "";
+            await runAffectiveInference(text);
+        });
+
+        // Initialize script
+        init();
+    </script>
+</body>
+</html>
