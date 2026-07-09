@@ -1,110 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Affective AI Engine</title>
-    <!-- Tailwind CSS for high-fidelity responsive UI styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ONNX Runtime Web CDN to run model weights on CPU/GPU in-browser -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
-</head>
-<body class="bg-gray-950 text-white min-h-screen flex flex-col font-sans">
-
-    <!-- Top Navigation Header -->
-    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="h-4 w-4 rounded-full bg-emerald-500 animate-pulse"></div>
-            <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">Universal Affective AI</h1>
-        </div>
-        <div class="text-xs text-gray-400 font-mono bg-gray-800/80 px-3 py-1.5 rounded-full border border-gray-700/50">
-            Engine: ONNX Webassembly [Local GPU/CPU]
-        </div>
-    </header>
-
-    <!-- Main Chat Container -->
-    <main class="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6 overflow-hidden">
-        <!-- Initial Loader State (Shows while model is downloading) -->
-        <div id="model-loader" class="flex-1 flex flex-col items-center justify-center gap-4 text-center">
-            <div class="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-400 rounded-full animate-spin"></div>
-            <div>
-                <h3 id="loader-title" class="text-lg font-semibold">Downloading AI Brain...</h3>
-                <p id="loader-subtitle" class="text-sm text-gray-500 max-w-xs mt-1">Downloading compiled DeBERTa+GCN model (~90MB) from Hugging Face directly to your browser memory. This happens only once.</p>
-                <div class="w-48 bg-gray-800 h-1.5 rounded-full overflow-hidden mx-auto mt-4">
-                    <div class="bg-emerald-400 h-full w-full animate-shimmer" style="background-image: linear-gradient(90deg, #10b981 0%, #059669 50%, #10b981 100%); background-size: 200% 100%;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Conversational Interface (Hidden until model load succeeds) -->
-        <div id="chat-interface" class="hidden flex-1 flex flex-col md:flex-row gap-6 overflow-hidden min-h-[400px]">
-            <!-- Chat Feed Panel -->
-            <div class="flex-1 flex flex-col bg-gray-900/50 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
-                <!-- Messages Box -->
-                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4 font-normal text-sm scroll-smooth">
-                    <div class="flex gap-3 max-w-[85%]">
-                        <div class="h-8 w-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xs font-bold">AI</div>
-                        <div class="bg-gray-800/80 px-4 py-3 rounded-2xl rounded-tl-none border border-gray-700/40 text-gray-200">
-                            Hello. I am your local, superhuman emotional companion. Write anything you want—I can understand your unmasked feelings, personal baselines, and cognitive thought patterns locally.
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Input Action Form -->
-                <div class="p-4 border-t border-gray-800/80 bg-gray-900/80">
-                    <form id="chat-form" class="flex gap-2">
-                        <input type="text" id="user-input" required class="flex-1 bg-gray-950 border border-gray-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none rounded-xl px-4 py-3 text-sm transition-all text-gray-100 placeholder-gray-600" placeholder="Type an emotionally complex sentence or use emojis...">
-                        <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-gray-950 font-semibold px-6 py-3 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/10">Analyze</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Real-Time Metrics & Cognitive Appraisal Dashboard Panel -->
-            <div class="w-full md:w-80 flex flex-col gap-4">
-                <div class="bg-gray-900/30 border border-gray-800/80 p-5 rounded-2xl flex flex-col gap-4">
-                    <h2 class="text-sm font-semibold text-gray-400 tracking-wider uppercase">Cognitive Dashboard</h2>
-                    <hr class="border-gray-800">
-                    
-                    <!-- Predicted Emotion -->
-                    <div>
-                        <span class="text-xs text-gray-500 block mb-1">Dominant Emotion State</span>
-                        <div id="meta-emotion" class="text-md font-bold text-emerald-400">Neutral (100%)</div>
-                    </div>
-
-                    <!-- VAD Slider indicators -->
-                    <div class="space-y-3">
-                        <span class="text-xs text-gray-500 block">Empirical VAD Trajectory Coordinates</span>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1"><span class="text-rose-400 font-semibold">Valence (Pleasure)</span><span id="val-num" class="font-mono">0.50</span></div>
-                            <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden border border-gray-800/50"><div id="val-bar" class="bg-rose-400 h-full transition-all duration-300" style="width: 50%"></div></div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1"><span class="text-amber-400 font-semibold">Arousal (Tension)</span><span id="aro-num" class="font-mono">0.20</span></div>
-                            <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden border border-gray-800/50"><div id="aro-bar" class="bg-amber-400 h-full transition-all duration-300" style="width: 20%"></div></div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1"><span class="text-sky-400 font-semibold">Dominance (Control)</span><span id="dom-num" class="font-mono">0.50</span></div>
-                            <div class="w-full bg-gray-950 h-1.5 rounded-full overflow-hidden border border-gray-800/50"><div id="dom-bar" class="bg-sky-400 h-full transition-all duration-300" style="width: 50%"></div></div>
-                        </div>
-                    </div>
-
-                    <hr class="border-gray-800">
-
-                    <!-- CBT Cognitive distortion diagnosis -->
-                    <div>
-                        <span class="text-xs text-gray-500 block mb-1">CBT Cognitive Distortion</span>
-                        <div id="meta-cbt" class="inline-block bg-gray-950 border border-gray-800 text-[11px] font-bold px-3 py-1.5 rounded-lg text-gray-400">NONE</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
     <!-- Import DeBERTa tokenizer using HF official Xenova/Transformers ES-Module -->
     <script type="module">
         import { AutoTokenizer, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.15.1';
 
-        // FIXED: Deactivate local file search. Prevents static hosts from returning index.html as a 404 fallback!
+        // Force local file search OFF. Prevents static hosts from throwing 404 HTML redirects!
         env.allowLocalModels = false;
 
         // Your public Hugging Face ONNX path
@@ -133,8 +31,8 @@
         // Initialize and download WASM model
         async function init() {
             try {
-                // FIXED: Loading the pre-converted web-ready JSON tokenizer configurations from Xenova repo
-                tokenizer = await AutoTokenizer.from_pretrained('Xenova/deberta-v3-base');
+                // FIXED: Loading tokenizer from a completely public, open, ungated DeBERTa-v3 academic mirror
+                tokenizer = await AutoTokenizer.from_pretrained('tasksource/deberta-v3-base');
                 
                 // Initialize ONNX runtime execution session
                 session = await ort.InferenceSession.create(MODEL_URL);
@@ -197,7 +95,7 @@
             // 1. Tokenize using Hugging Face browser tokenizer
             const encoded = await tokenizer(text, { maxLength: 64, padding: true, truncation: true });
             
-            // FIXED: Map standard arrays to BigInt64Array to align with ONNX 64-bit integer inputs (torch.long)
+            // Map standard arrays to BigInt64Array to align with ONNX 64-bit integer inputs (torch.long)
             const inputIds = BigInt64Array.from(encoded.input_ids.map(x => BigInt(x)));
             const attentionMask = BigInt64Array.from(encoded.attention_mask.map(x => BigInt(x)));
             
@@ -216,7 +114,6 @@
             }
 
             // 4. Pack inputs into strict ONNX tensors
-            // FIXED: Using 'int64' data structures to match signature allocations
             const inputs = {
                 input_ids: new ort.Tensor('int64', inputIds, [1, 64]),
                 attention_mask: new ort.Tensor('int64', attentionMask, [1, 64]),
@@ -350,5 +247,3 @@
         // Initialize script
         init();
     </script>
-</body>
-</html>
