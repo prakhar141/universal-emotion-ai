@@ -133,8 +133,8 @@
         // Initialize and download WASM model
         async function init() {
             try {
-                // FIXED: Loading tokenizer from MoritzLaurer's open, completely ungated, public MNLI mirror
-                tokenizer = await AutoTokenizer.from_pretrained('MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli');
+                // FIXED: Loading standard, open, ungated, public Xenova DeBERTa tokenizer
+                tokenizer = await AutoTokenizer.from_pretrained('Xenova/deberta-v3-base');
                 
                 // Initialize ONNX runtime execution session
                 session = await ort.InferenceSession.create(MODEL_URL);
